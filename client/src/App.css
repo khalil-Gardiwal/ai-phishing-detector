@@ -14,7 +14,7 @@ body {
 }
 
 .container {
-  max-width: 850px;
+  max-width: 950px;
   margin: auto;
   background: white;
   padding: 30px;
@@ -32,6 +32,37 @@ h1 {
   text-align: center;
   color: #6b7280;
   margin-bottom: 25px;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: #f9fafb;
+  padding: 18px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 28px;
+  color: #2563eb;
+}
+
+.stat-card p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.stat-card.danger h3 {
+  color: #dc2626;
 }
 
 .tabs {
@@ -114,4 +145,14 @@ input:focus {
 
 .result-card ul {
   padding-left: 22px;
+}
+
+@media (max-width: 700px) {
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .container {
+    padding: 20px;
+  }
 }

@@ -1,11 +1,14 @@
 const express = require("express");
 const cors = require("cors");
+const connectDB = require("./config/db");
 require("dotenv").config();
+
 
 const testRoutes = require("./routes/testRoutes");
 const phishingRoutes = require("./routes/phishingRoutes");
 
 const app = express();
+connectDB();
 
 app.use(cors());
 app.use(express.json());
@@ -16,6 +19,7 @@ app.get("/", (req, res) => {
 
 app.use("/api", testRoutes);
 app.use("/api/phishing", phishingRoutes);
+
 
 const PORT = 5000;
 

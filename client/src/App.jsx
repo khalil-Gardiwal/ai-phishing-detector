@@ -9,6 +9,25 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [stats, setStats] = useState({
+    totalScans: 0,
+    emailScans: 0,
+    urlScans: 0,
+    suspiciousResults: 0,
+  });
+
+  const updateStats = (type, data) => {
+    setStats((prev) => ({
+      totalScans: prev.totalScans + 1,
+      emailScans: type === "email" ? prev.emailScans + 1 : prev.emailScans,
+      urlScans: type === "url" ? prev.urlScans + 1 : prev.urlScans,
+      suspiciousResults:
+        data.status !== "Safe"
+          ? prev.suspiciousResults + 1
+          : prev.suspiciousResults,
+    }));
+  };
+
   const analyzeEmail = async () => {
     if (!emailText.trim()) {
       alert("Please paste email text first.");
@@ -25,6 +44,7 @@ function App() {
       );
 
       setResult(response.data);
+      updateStats("email", response.data);
     } catch (error) {
       alert("Error analyzing email. Make sure backend is running.");
     } finally {
@@ -48,6 +68,7 @@ function App() {
       );
 
       setResult(response.data);
+      updateStats("url", response.data);
     } catch (error) {
       alert("Error analyzing URL. Make sure backend is running.");
     } finally {
@@ -60,8 +81,30 @@ function App() {
       <div className="container">
         <h1>AI Phishing Detection System</h1>
         <p className="subtitle">
-          Analyze suspicious emails and URLs using a simple rule-based detection system.
+          Analyze suspicious emails and URLs for phishing indicators.
         </p>
+
+        <div className="dashboard">
+          <div className="stat-card">
+            <h3>{stats.totalScans}</h3>
+            <p>Total Scans</p>
+          </div>
+
+          <div className="stat-card">
+            <h3>{stats.emailScans}</h3>
+            <p>Email Scans</p>
+          </div>
+
+          <div className="stat-card">
+            <h3>{stats.urlScans}</h3>
+            <p>URL Scans</p>
+          </div>
+
+          <div className="stat-card danger">
+            <h3>{stats.suspiciousResults}</h3>
+            <p>Suspicious Results</p>
+          </div>
+        </div>
 
         <div className="tabs">
           <button
@@ -88,6 +131,7 @@ function App() {
         {activeTab === "email" && (
           <div className="section">
             <h2>Email Analysis</h2>
+
             <textarea
               placeholder="Paste suspicious email text here..."
               value={emailText}
@@ -103,6 +147,7 @@ function App() {
         {activeTab === "url" && (
           <div className="section">
             <h2>URL Analysis</h2>
+
             <input
               type="text"
               placeholder="Paste suspicious URL here..."
