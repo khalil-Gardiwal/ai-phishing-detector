@@ -156,3 +156,32 @@ input:focus {
     padding: 20px;
   }
 }
+.history-card {
+  margin-top: 25px;
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item p {
+  margin: 5px 0 0;
+  color: #6b7280;
+}
+
+.history-item span {
+  font-weight: bold;
+  color: #dc2626;
+}
