@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 function Dashboard() {
+  const token = localStorage.getItem("token");
+
   const [activeTab, setActiveTab] = useState("email");
   const [emailText, setEmailText] = useState("");
   const [url, setUrl] = useState("");
@@ -10,8 +12,20 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
 
   const fetchHistory = async () => {
-    const response = await axios.get("http://localhost:5000/api/phishing/history");
-    setHistory(response.data);
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/api/phishing/history",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setHistory(response.data);
+    } catch (error) {
+      console.log("History fetch failed", error);
+    }
   };
 
   useEffect(() => {
@@ -19,36 +33,76 @@ function Dashboard() {
   }, []);
 
   const analyzeEmail = async () => {
-    if (!emailText.trim()) return alert("Please paste email text first.");
+    if (!emailText.trim()) {
+      alert("Please paste email text first.");
+      return;
+    }
 
-    setLoading(true);
-    const response = await axios.post("http://localhost:5000/api/phishing/analyze-email", {
-      emailText,
-    });
+    try {
+      setLoading(true);
+      setResult(null);
 
-    setResult(response.data);
-    await fetchHistory();
-    setLoading(false);
+      const response = await axios.post(
+        "http://localhost:5000/api/phishing/analyze-email",
+        {
+          emailText,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setResult(response.data);
+      setEmailText("");
+      await fetchHistory();
+    } catch (error) {
+      alert(error.response?.data?.message || "Error analyzing email");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const analyzeUrl = async () => {
-    if (!url.trim()) return alert("Please paste a URL first.");
+    if (!url.trim()) {
+      alert("Please paste a URL first.");
+      return;
+    }
 
-    setLoading(true);
-    const response = await axios.post("http://localhost:5000/api/phishing/analyze-url", {
-      url,
-    });
+    try {
+      setLoading(true);
+      setResult(null);
 
-    setResult(response.data);
-    await fetchHistory();
-    setLoading(false);
+      const response = await axios.post(
+        "http://localhost:5000/api/phishing/analyze-url",
+        {
+          url,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setResult(response.data);
+      setUrl("");
+      await fetchHistory();
+    } catch (error) {
+      alert(error.response?.data?.message || "Error analyzing URL");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="page">
       <div className="container">
         <h1>AI Phishing Detection System</h1>
-        <p className="subtitle">Analyze suspicious emails and URLs for phishing indicators.</p>
+        <p className="subtitle">
+          Analyze suspicious emails and URLs for phishing indicators.
+        </p>
 
         <div className="dashboard">
           <div className="stat-card">
@@ -75,14 +129,20 @@ function Dashboard() {
         <div className="tabs">
           <button
             className={activeTab === "email" ? "active" : ""}
-            onClick={() => setActiveTab("email")}
+            onClick={() => {
+              setActiveTab("email");
+              setResult(null);
+            }}
           >
             Email Analysis
           </button>
 
           <button
             className={activeTab === "url" ? "active" : ""}
-            onClick={() => setActiveTab("url")}
+            onClick={() => {
+              setActiveTab("url");
+              setResult(null);
+            }}
           >
             URL Analysis
           </button>
@@ -98,7 +158,11 @@ function Dashboard() {
               onChange={(e) => setEmailText(e.target.value)}
             />
 
-            <button className="analyze-btn" onClick={analyzeEmail}>
+            <button
+              className="analyze-btn"
+              onClick={analyzeEmail}
+              disabled={loading}
+            >
               {loading ? "Analyzing..." : "Analyze Email"}
             </button>
           </div>
@@ -113,7 +177,11 @@ function Dashboard() {
               onChange={(e) => setUrl(e.target.value)}
             />
 
-            <button className="analyze-btn" onClick={analyzeUrl}>
+            <button
+              className="analyze-btn"
+              onClick={analyzeUrl}
+              disabled={loading}
+            >
               {loading ? "Analyzing..." : "Analyze URL"}
             </button>
           </div>
@@ -122,29 +190,41 @@ function Dashboard() {
         {result && (
           <div className="result-card">
             <h2>Analysis Result</h2>
-            <p><strong>Status:</strong> {result.status}</p>
-            <p><strong>Risk Score:</strong> {result.riskScore}%</p>
+
+            <p>
+              <strong>Status:</strong> {result.status}
+            </p>
+
+            <p>
+              <strong>Risk Score:</strong> {result.riskScore}%
+            </p>
 
             {result.foundWords && (
               <p>
                 <strong>Suspicious Words:</strong>{" "}
-                {result.foundWords.length ? result.foundWords.join(", ") : "None"}
+                {result.foundWords.length > 0
+                  ? result.foundWords.join(", ")
+                  : "None"}
               </p>
             )}
 
-            <strong>Reasons:</strong>
+            <div>
+              <strong>Reasons:</strong>
 
-            {result.reasons?.length ? (
-              <ul>
-                {result.reasons.map((reason, index) => (
-                  <li key={index}>{reason}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>No suspicious reasons found.</p>
-            )}
+              {result.reasons && result.reasons.length > 0 ? (
+                <ul>
+                  {result.reasons.map((reason, index) => (
+                    <li key={index}>{reason}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No suspicious reasons found.</p>
+              )}
+            </div>
 
-            <p><strong>Recommendation:</strong> {result.recommendation}</p>
+            <p>
+              <strong>Recommendation:</strong> {result.recommendation}
+            </p>
           </div>
         )}
 
@@ -152,7 +232,7 @@ function Dashboard() {
           <h2>Recent Scan History</h2>
 
           {history.length === 0 ? (
-            <p>No scans yet.</p>
+            <p>No scans yet for this user.</p>
           ) : (
             history.slice(0, 5).map((item) => (
               <div className="history-item" key={item._id}>

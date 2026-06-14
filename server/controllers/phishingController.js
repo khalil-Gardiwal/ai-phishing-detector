@@ -82,13 +82,13 @@ const analyzeEmail = async (req, res) => {
     } else if (riskScore >= 20) {
       status = "Suspicious";
     }
-
-    await Scan.create({
-      type: "Email",
-      content: emailText,
-      status,
-      riskScore,
-    });
+await Scan.create({
+  user: req.user.id,
+  type: "Email",
+  content: emailText,
+  status,
+  riskScore,
+});
 
     res.json({
       status,
@@ -157,13 +157,13 @@ const analyzeUrl = async (req, res) => {
     } else if (riskScore >= 20) {
       status = "Suspicious";
     }
-
-    await Scan.create({
-      type: "URL",
-      content: url,
-      status,
-      riskScore,
-    });
+await Scan.create({
+  user: req.user.id,
+  type: "URL",
+  content: url,
+  status,
+  riskScore,
+});
 
     res.json({
       status,
@@ -185,7 +185,11 @@ const analyzeUrl = async (req, res) => {
 
 const getScanHistory = async (req, res) => {
   try {
-    const scans = await Scan.find().sort({ createdAt: -1 });
+    const scans = await Scan.find({
+  user: req.user.id,
+}).sort({
+  createdAt: -1,
+});
 
     res.json(scans);
   } catch (error) {
