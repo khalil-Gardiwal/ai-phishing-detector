@@ -1,4 +1,5 @@
 const Scan = require("../models/Scan");
+const groq = require("../config/groq");
 
 const analyzeEmail = async (req, res) => {
   try {
@@ -10,101 +11,53 @@ const analyzeEmail = async (req, res) => {
       });
     }
 
-    const phishingRules = [
-      {
-        word: "password",
-        reason:
-          "The email asks about a password, which can be a sign of credential theft.",
-      },
-      {
-        word: "verify",
-        reason:
-          "The email asks the user to verify information, which is common in phishing.",
-      },
-      {
-        word: "urgent",
-        reason:
-          "The email uses urgent language to pressure the user.",
-      },
-      {
-        word: "suspended",
-        reason:
-          "The email threatens account suspension, which is a common phishing tactic.",
-      },
-      {
-        word: "click here",
-        reason:
-          "The email asks the user to click a link, which may lead to a fake website.",
-      },
-      {
-        word: "account locked",
-        reason:
-          "The email claims the account is locked to create fear.",
-      },
-      {
-        word: "login",
-        reason:
-          "The email mentions login, which may be used to steal credentials.",
-      },
-      {
-        word: "bank",
-        reason:
-          "The email mentions banking, which can indicate financial phishing.",
-      },
-      {
-        word: "winner",
-        reason:
-          "The email claims the user is a winner, which is common in scams.",
-      },
-      {
-        word: "prize",
-        reason:
-          "The email mentions a prize, which can be used to trick users.",
-      },
-    ];
+    const prompt = `
+You are an AI phishing detection assistant.
 
-    let riskScore = 0;
-    let foundWords = [];
-    let reasons = [];
+Analyze the following email text and decide if it is Safe, Suspicious, or High Risk.
 
-    phishingRules.forEach((rule) => {
-      if (emailText.toLowerCase().includes(rule.word)) {
-        riskScore += 10;
-        foundWords.push(rule.word);
-        reasons.push(rule.reason);
-      }
+Return ONLY valid JSON with this exact structure:
+{
+  "status": "Safe or Suspicious or High Risk",
+  "riskScore": number between 0 and 100,
+  "foundWords": ["word 1", "word 2"],
+  "reasons": ["reason 1", "reason 2"],
+  "recommendation": "short safety recommendation"
+}
+
+Email text:
+${emailText}
+`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.2,
     });
 
-    let status = "Safe";
+    const aiText = completion.choices[0].message.content;
+    const aiResult = JSON.parse(aiText);
 
-    if (riskScore >= 50) {
-      status = "High Risk";
-    } else if (riskScore >= 20) {
-      status = "Suspicious";
-    }
-await Scan.create({
-  user: req.user.id,
-  type: "Email",
-  content: emailText,
-  status,
-  riskScore,
-});
+    await Scan.create({
+      user: req.user.id,
+      type: "Email",
+      content: emailText,
+      status: aiResult.status,
+      riskScore: aiResult.riskScore,
+    });
 
     res.json({
-      status,
-      riskScore,
-      foundWords,
-      reasons,
-      recommendation:
-        status === "Safe"
-          ? "This email looks safe, but always verify the sender before taking action."
-          : "Do not click suspicious links, do not share passwords, and verify the sender through an official website.",
-      message: "Email analyzed successfully",
+      status: aiResult.status,
+      riskScore: aiResult.riskScore,
+      foundWords: aiResult.foundWords || [],
+      reasons: aiResult.reasons || [],
+      recommendation: aiResult.recommendation,
+      message: "AI email analyzed successfully",
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Server Error",
+      message: "AI email analysis failed",
     });
   }
 };
@@ -138,16 +91,12 @@ const analyzeUrl = async (req, res) => {
       url.toLowerCase().includes("secure")
     ) {
       riskScore += 20;
-      reasons.push(
-        "The URL contains words commonly used in phishing links."
-      );
+      reasons.push("The URL contains words commonly used in phishing links.");
     }
 
     if (url.length > 80) {
       riskScore += 20;
-      reasons.push(
-        "The URL is very long, which can hide suspicious content."
-      );
+      reasons.push("The URL is very long, which can hide suspicious content.");
     }
 
     let status = "Safe";
@@ -157,13 +106,14 @@ const analyzeUrl = async (req, res) => {
     } else if (riskScore >= 20) {
       status = "Suspicious";
     }
-await Scan.create({
-  user: req.user.id,
-  type: "URL",
-  content: url,
-  status,
-  riskScore,
-});
+
+    await Scan.create({
+      user: req.user.id,
+      type: "URL",
+      content: url,
+      status,
+      riskScore,
+    });
 
     res.json({
       status,
@@ -176,7 +126,6 @@ await Scan.create({
       message: "URL analyzed successfully",
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({
       message: "Server Error",
     });
@@ -185,15 +134,12 @@ await Scan.create({
 
 const getScanHistory = async (req, res) => {
   try {
-    const scans = await Scan.find({
-  user: req.user.id,
-}).sort({
-  createdAt: -1,
-});
+    const scans = await Scan.find({ user: req.user.id }).sort({
+      createdAt: -1,
+    });
 
     res.json(scans);
   } catch (error) {
-    console.error(error);
     res.status(500).json({
       message: "Server Error",
     });
