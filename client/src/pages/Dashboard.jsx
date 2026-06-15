@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
 
 function Dashboard() {
   const token = localStorage.getItem("token");
@@ -58,6 +70,7 @@ function Dashboard() {
       setEmailText("");
       await fetchHistory();
     } catch (error) {
+      console.log("Email analyze failed:", error.response?.data || error);
       alert(error.response?.data?.message || "Error analyzing email");
     } finally {
       setLoading(false);
@@ -90,11 +103,46 @@ function Dashboard() {
       setUrl("");
       await fetchHistory();
     } catch (error) {
+      console.log("URL analyze failed:", error.response?.data || error);
       alert(error.response?.data?.message || "Error analyzing URL");
     } finally {
       setLoading(false);
     }
   };
+
+  const getType = (item) => item.type?.toLowerCase();
+  const getStatus = (item) => item.status?.toLowerCase();
+
+  const totalScans = history.length;
+
+  const emailScans = history.filter((item) => getType(item) === "email").length;
+  const urlScans = history.filter((item) => getType(item) === "url").length;
+
+  const safeScans = history.filter((item) => getStatus(item) === "safe").length;
+
+  const suspiciousScans = history.filter(
+    (item) => getStatus(item) === "suspicious"
+  ).length;
+
+  const highRiskScans = history.filter(
+    (item) =>
+      getStatus(item) === "high risk" ||
+      getStatus(item) === "high-risk" ||
+      getStatus(item) === "highrisk"
+  ).length;
+
+  const riskPieData = [
+    { name: "Safe", value: safeScans },
+    { name: "Suspicious", value: suspiciousScans },
+    { name: "High Risk", value: highRiskScans },
+  ];
+
+  const scanTypeData = [
+    { name: "Email", scans: emailScans },
+    { name: "URL", scans: urlScans },
+  ];
+
+  const COLORS = ["#22c55e", "#f59e0b", "#ef4444"];
 
   return (
     <div className="page">
@@ -106,23 +154,80 @@ function Dashboard() {
 
         <div className="dashboard">
           <div className="stat-card">
-            <h3>{history.length}</h3>
+            <h3>{totalScans}</h3>
             <p>Total Scans</p>
           </div>
 
+          <div className="stat-card safe">
+            <h3>{safeScans}</h3>
+            <p>Safe Scans</p>
+          </div>
+
+          <div className="stat-card warning">
+            <h3>{suspiciousScans}</h3>
+            <p>Suspicious Scans</p>
+          </div>
+
+          <div className="stat-card danger">
+            <h3>{highRiskScans}</h3>
+            <p>High Risk Scans</p>
+          </div>
+
           <div className="stat-card">
-            <h3>{history.filter((item) => item.type === "Email").length}</h3>
+            <h3>{emailScans}</h3>
             <p>Email Scans</p>
           </div>
 
           <div className="stat-card">
-            <h3>{history.filter((item) => item.type === "URL").length}</h3>
+            <h3>{urlScans}</h3>
             <p>URL Scans</p>
           </div>
+        </div>
 
-          <div className="stat-card danger">
-            <h3>{history.filter((item) => item.status !== "Safe").length}</h3>
-            <p>Suspicious Results</p>
+        <div className="charts-section">
+          <div className="chart-card">
+            <h2>Risk Level Statistics</h2>
+
+            {totalScans === 0 ? (
+              <p>No scan data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={riskPieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    label
+                  >
+                    {riskPieData.map((entry, index) => (
+                      <Cell key={index} fill={COLORS[index]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="chart-card">
+            <h2>Email vs URL Scans</h2>
+
+            {totalScans === 0 ? (
+              <p>No scan data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={scanTypeData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="scans" fill="#2563eb" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -252,4 +357,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-
