@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   PieChart,
   Pie,
@@ -22,6 +24,7 @@ function Dashboard() {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchHistory = async () => {
     try {
@@ -56,9 +59,7 @@ function Dashboard() {
 
       const response = await axios.post(
         "http://localhost:5000/api/phishing/analyze-email",
-        {
-          emailText,
-        },
+        { emailText },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -89,9 +90,7 @@ function Dashboard() {
 
       const response = await axios.post(
         "http://localhost:5000/api/phishing/analyze-url",
-        {
-          url,
-        },
+        { url },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -114,10 +113,8 @@ function Dashboard() {
   const getStatus = (item) => item.status?.toLowerCase();
 
   const totalScans = history.length;
-
   const emailScans = history.filter((item) => getType(item) === "email").length;
   const urlScans = history.filter((item) => getType(item) === "url").length;
-
   const safeScans = history.filter((item) => getStatus(item) === "safe").length;
 
   const suspiciousScans = history.filter(
@@ -143,6 +140,44 @@ function Dashboard() {
   ];
 
   const COLORS = ["#22c55e", "#f59e0b", "#ef4444"];
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("AI Phishing Detection Report", 14, 20);
+
+    doc.setFontSize(11);
+    doc.text(`Total Scans: ${totalScans}`, 14, 35);
+    doc.text(`Safe Scans: ${safeScans}`, 14, 43);
+    doc.text(`Suspicious Scans: ${suspiciousScans}`, 14, 51);
+    doc.text(`High Risk Scans: ${highRiskScans}`, 14, 59);
+    doc.text(`Email Scans: ${emailScans}`, 14, 67);
+    doc.text(`URL Scans: ${urlScans}`, 14, 75);
+
+    autoTable(doc, {
+      startY: 90,
+      head: [["Type", "Status", "Risk Score", "Full Content"]],
+      body: history.map((item) => [
+        item.type,
+        item.status,
+        `${item.riskScore}%`,
+        item.content || "",
+      ]),
+      styles: {
+        fontSize: 9,
+        cellWidth: "wrap",
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 110 },
+      },
+    });
+
+    doc.save("phishing-report.pdf");
+  };
 
   return (
     <div className="page">
@@ -183,6 +218,10 @@ function Dashboard() {
             <p>URL Scans</p>
           </div>
         </div>
+
+        <button className="export-btn" onClick={exportPDF}>
+          Export Report as PDF
+        </button>
 
         <div className="charts-section">
           <div className="chart-card">
@@ -340,10 +379,27 @@ function Dashboard() {
             <p>No scans yet for this user.</p>
           ) : (
             history.slice(0, 5).map((item) => (
-              <div className="history-item" key={item._id}>
-                <div>
+              <div
+                className="history-item clickable-history"
+                key={item._id}
+                onClick={() =>
+                  setExpandedId(expandedId === item._id ? null : item._id)
+                }
+              >
+                <div className="history-content">
                   <strong>{item.type}</strong> — {item.status}
-                  <p>{item.content.slice(0, 80)}...</p>
+
+                  <p>
+                    {expandedId === item._id
+                      ? item.content
+                      : `${item.content.slice(0, 80)}...`}
+                  </p>
+
+                  <small>
+                    {expandedId === item._id
+                      ? "Click to hide full content"
+                      : "Click to view full content"}
+                  </small>
                 </div>
 
                 <span>{item.riskScore}%</span>
