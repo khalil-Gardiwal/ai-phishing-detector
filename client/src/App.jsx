@@ -2,6 +2,7 @@ import { Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Campaigns from "./pages/Campaigns.jsx";
 import "./App.css";
 
 function App() {
@@ -23,7 +24,9 @@ function App() {
         <div>
           {!token && <Link to="/register">Register</Link>}
           {!token && <Link to="/login">Login</Link>}
+
           {token && <Link to="/dashboard">Dashboard</Link>}
+          {token && <Link to="/campaigns">Campaigns</Link>}
           {token && <button onClick={logoutUser}>Logout</button>}
         </div>
       </nav>
@@ -47,6 +50,11 @@ function App() {
         <Route
           path="/dashboard"
           element={token ? <Dashboard /> : <Navigate to="/login" />}
+        />
+
+        <Route
+          path="/campaigns"
+          element={token ? <Campaigns /> : <Navigate to="/login" />}
         />
       </Routes>
     </>

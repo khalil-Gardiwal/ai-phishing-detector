@@ -263,6 +263,28 @@ input:focus {
   color: #dc2626;
 }
 
+.clickable-history {
+  cursor: pointer;
+}
+
+.clickable-history:hover {
+  background: #f3f4f6;
+}
+
+.clickable-history p {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.clickable-history small {
+  color: #2563eb;
+  font-weight: bold;
+}
+
+.history-content {
+  flex: 1;
+}
+
 .auth-container {
   max-width: 420px;
   margin: 80px auto;
@@ -309,6 +331,121 @@ input:focus {
   text-decoration: none;
 }
 
+/* Campaign Page */
+
+.campaign-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-top: 25px;
+}
+
+.campaign-form {
+  background: #f9fafb;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.campaign-form h2,
+.campaign-list h2 {
+  margin-top: 0;
+  color: #111827;
+}
+
+.campaign-form label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  color: #374151;
+  font-weight: bold;
+}
+
+.campaign-form textarea {
+  height: 160px;
+}
+
+.campaign-list {
+  background: #ffffff;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.campaign-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.campaign-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.campaign-header h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.campaign-header span {
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.campaign-card p {
+  color: #4b5563;
+  margin: 8px 0;
+}
+
+.campaign-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 15px 0;
+}
+
+.campaign-stats div {
+  background: white;
+  padding: 12px;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.campaign-stats strong {
+  display: block;
+  color: #2563eb;
+  font-size: 22px;
+}
+
+.campaign-stats small {
+  color: #6b7280;
+}
+
+.campaign-note {
+  background: #fffbeb;
+  border-left: 4px solid #f59e0b;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 800px) {
+  .campaign-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
   .dashboard {
     grid-template-columns: repeat(2, 1fr);
@@ -322,21 +459,4 @@ input:focus {
     flex-direction: column;
     gap: 12px;
   }
-}
-.clickable-history {
-  cursor: pointer;
-}
-
-.clickable-history:hover {
-  background: #f3f4f6;
-}
-
-.clickable-history p {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.clickable-history small {
-  color: #2563eb;
-  font-weight: bold;
 }
