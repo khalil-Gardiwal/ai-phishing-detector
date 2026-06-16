@@ -9,8 +9,11 @@ function Campaigns() {
   const [fakeEmailSubject, setFakeEmailSubject] = useState("");
   const [fakeEmailContent, setFakeEmailContent] = useState("");
   const [totalTargets, setTotalTargets] = useState("");
+
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedCampaignId, setExpandedCampaignId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchCampaigns = async () => {
     try {
@@ -76,6 +79,80 @@ function Campaigns() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateCampaignStats = async (campaign, action) => {
+    try {
+      setUpdatingId(campaign._id);
+
+      let openedCount = campaign.openedCount;
+      let clickedCount = campaign.clickedCount;
+      let ignoredCount = campaign.ignoredCount;
+      let status = campaign.status;
+
+      if (action === "open") {
+        if (ignoredCount > 0) {
+          ignoredCount -= 1;
+          openedCount += 1;
+        }
+        status = "Active";
+      }
+
+      if (action === "click") {
+        if (ignoredCount > 0) {
+          ignoredCount -= 1;
+          clickedCount += 1;
+        } else if (openedCount > 0) {
+          openedCount -= 1;
+          clickedCount += 1;
+        }
+        status = "Active";
+      }
+
+      if (action === "complete") {
+        status = "Completed";
+      }
+
+      if (action === "reset") {
+        openedCount = 0;
+        clickedCount = 0;
+        ignoredCount = campaign.totalTargets;
+        status = "Draft";
+      }
+
+      await axios.put(
+        `http://localhost:5000/api/campaigns/${campaign._id}`,
+        {
+          openedCount,
+          clickedCount,
+          ignoredCount,
+          status,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await fetchCampaigns();
+    } catch (error) {
+      console.log("Update campaign failed:", error.response?.data || error);
+      alert(error.response?.data?.message || "Failed to update campaign");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const calculateAwarenessScore = (campaign) => {
+    if (!campaign.totalTargets || campaign.totalTargets === 0) {
+      return 0;
+    }
+
+    const safeUsers = campaign.ignoredCount + campaign.openedCount;
+    const score = Math.round((safeUsers / campaign.totalTargets) * 100);
+
+    return score;
   };
 
   return (
@@ -176,6 +253,77 @@ function Campaigns() {
                       <strong>{campaign.ignoredCount}</strong>
                       <small>Ignored</small>
                     </div>
+                  </div>
+
+                  <div className="awareness-score">
+                    <strong>
+                      Awareness Score: {calculateAwarenessScore(campaign)}%
+                    </strong>
+                  </div>
+
+                  <button
+                    className="view-email-btn"
+                    type="button"
+                    onClick={() =>
+                      setExpandedCampaignId(
+                        expandedCampaignId === campaign._id
+                          ? null
+                          : campaign._id
+                      )
+                    }
+                  >
+                    {expandedCampaignId === campaign._id
+                      ? "Hide Fake Email"
+                      : "View Fake Email"}
+                  </button>
+
+                  {expandedCampaignId === campaign._id && (
+                    <div className="fake-email-preview">
+                      <h4>Fake Email Preview</h4>
+
+                      <p>
+                        <strong>Subject:</strong> {campaign.fakeEmailSubject}
+                      </p>
+
+                      <div className="fake-email-content">
+                        {campaign.fakeEmailContent}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="campaign-actions">
+                    <button
+                      type="button"
+                      onClick={() => updateCampaignStats(campaign, "open")}
+                      disabled={updatingId === campaign._id}
+                    >
+                      Simulate Opened
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateCampaignStats(campaign, "click")}
+                      disabled={updatingId === campaign._id}
+                    >
+                      Simulate Clicked
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => updateCampaignStats(campaign, "complete")}
+                      disabled={updatingId === campaign._id}
+                    >
+                      Mark Completed
+                    </button>
+
+                    <button
+                      type="button"
+                      className="reset-btn"
+                      onClick={() => updateCampaignStats(campaign, "reset")}
+                      disabled={updatingId === campaign._id}
+                    >
+                      Reset
+                    </button>
                   </div>
 
                   <p className="campaign-note">
