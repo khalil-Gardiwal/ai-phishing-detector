@@ -547,3 +547,39 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
+.send-email-box {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 15px 0;
+}
+
+.send-email-box h4 {
+  margin-top: 0;
+  color: #1e3a8a;
+}
+
+.send-email-box input {
+  margin-bottom: 10px;
+}
+
+.send-email-btn {
+  width: 100%;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 11px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.send-email-btn:hover {
+  background: #4338ca;
+}
+
+.send-email-btn:disabled {
+  background: #a5b4fc;
+  cursor: not-allowed;
+}

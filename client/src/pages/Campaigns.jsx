@@ -15,6 +15,9 @@ function Campaigns() {
   const [expandedCampaignId, setExpandedCampaignId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [sendingEmailId, setSendingEmailId] = useState(null);
+
   const fetchCampaigns = async () => {
     try {
       const response = await axios.get("http://localhost:5000/api/campaigns", {
@@ -141,6 +144,38 @@ function Campaigns() {
       alert(error.response?.data?.message || "Failed to update campaign");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const sendCampaignEmail = async (campaignId) => {
+    if (!recipientEmail.trim()) {
+      alert("Please enter recipient email.");
+      return;
+    }
+
+    try {
+      setSendingEmailId(campaignId);
+
+      const response = await axios.post(
+        "http://localhost:5000/api/email/send-campaign",
+        {
+          campaignId,
+          recipientEmail,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert(response.data.message);
+      setRecipientEmail("");
+    } catch (error) {
+      console.log("Send campaign email failed:", error.response?.data || error);
+      alert(error.response?.data?.message || "Failed to send campaign email");
+    } finally {
+      setSendingEmailId(null);
     }
   };
 
@@ -326,9 +361,31 @@ function Campaigns() {
                     </button>
                   </div>
 
+                  <div className="send-email-box">
+                    <h4>Send Training Email</h4>
+
+                    <input
+                      type="email"
+                      placeholder="Recipient email address"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                    />
+
+                    <button
+                      className="send-email-btn"
+                      type="button"
+                      onClick={() => sendCampaignEmail(campaign._id)}
+                      disabled={sendingEmailId === campaign._id}
+                    >
+                      {sendingEmailId === campaign._id
+                        ? "Sending..."
+                        : "Send Campaign Email"}
+                    </button>
+                  </div>
+
                   <p className="campaign-note">
-                    This is a simulated training campaign. No real phishing
-                    emails are sent in this phase.
+                    This is an authorized training campaign. Only send emails to
+                    people who agreed to participate.
                   </p>
                 </div>
               ))

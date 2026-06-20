@@ -10,6 +10,7 @@ const testRoutes = require("./routes/testRoutes");
 const phishingRoutes = require("./routes/phishingRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const campaignRoutes = require("./routes/campaignRoutes");
+const emailRoutes = require("./routes/emailRoutes");
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api", testRoutes);
 app.use("/api/phishing", phishingRoutes);
 app.use("/api/campaigns", campaignRoutes);
+app.use("/api/email", emailRoutes);
 
 app.get("/", (req, res) => {
   res.send("AI Phishing Detection Backend is running");
