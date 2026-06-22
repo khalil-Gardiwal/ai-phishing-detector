@@ -99,21 +99,10 @@ const updateCampaignStats = async (req, res) => {
       });
     }
 
-    if (openedCount !== undefined) {
-      campaign.openedCount = Number(openedCount);
-    }
-
-    if (clickedCount !== undefined) {
-      campaign.clickedCount = Number(clickedCount);
-    }
-
-    if (ignoredCount !== undefined) {
-      campaign.ignoredCount = Number(ignoredCount);
-    }
-
-    if (status !== undefined) {
-      campaign.status = status;
-    }
+    if (openedCount !== undefined) campaign.openedCount = Number(openedCount);
+    if (clickedCount !== undefined) campaign.clickedCount = Number(clickedCount);
+    if (ignoredCount !== undefined) campaign.ignoredCount = Number(ignoredCount);
+    if (status !== undefined) campaign.status = status;
 
     await campaign.save();
 
@@ -160,7 +149,9 @@ const sendCampaignEmail = async (req, res) => {
     }
 
     const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+
     const trackingLink = `${backendUrl}/api/campaigns/track-click/${campaign._id}`;
+    const openTrackingPixel = `${backendUrl}/api/campaigns/track-open/${campaign._id}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -172,6 +163,14 @@ const sendCampaignEmail = async (req, res) => {
             Verify Now
           </a>
         </p>
+
+      <img 
+  src="${openTrackingPixel}" 
+  width="1" 
+  height="1" 
+  style="width:1px;height:1px;opacity:0.01;" 
+  alt="."
+/>
 
         <p style="font-size: 12px; color: #666;">
           This email is part of an authorized cybersecurity awareness training campaign.
@@ -193,7 +192,9 @@ const sendCampaignEmail = async (req, res) => {
     }
 
     campaign.totalTargets = emailList.length;
-    campaign.ignoredCount = Math.max(emailList.length - campaign.clickedCount, 0);
+    campaign.openedCount = 0;
+    campaign.clickedCount = 0;
+    campaign.ignoredCount = emailList.length;
     campaign.status = "Active";
 
     await campaign.save();
@@ -212,10 +213,87 @@ const sendCampaignEmail = async (req, res) => {
   }
 };
 
+// Track when email is opened
+const trackCampaignOpen = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+
+    if (campaign) {
+      const alreadyTrackedTotal =
+        Number(campaign.openedCount) + Number(campaign.clickedCount);
+
+      if (alreadyTrackedTotal < Number(campaign.totalTargets)) {
+        campaign.openedCount += 1;
+
+        if (campaign.ignoredCount > 0) {
+          campaign.ignoredCount -= 1;
+        }
+
+        campaign.status = "Active";
+        await campaign.save();
+      }
+    }
+
+    const pixel = Buffer.from(
+      "R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==",
+      "base64"
+    );
+
+    res.writeHead(200, {
+      "Content-Type": "image/gif",
+      "Content-Length": pixel.length,
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
+
+    res.end(pixel);
+  } catch (error) {
+    console.error("Track open error:", error);
+    res.status(200).end();
+  }
+};
+
+// Track when email link is clicked
+const trackCampaignClick = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+
+    if (campaign) {
+      if (campaign.openedCount > 0) {
+        campaign.openedCount -= 1;
+        campaign.clickedCount += 1;
+      } else if (campaign.ignoredCount > 0) {
+        campaign.ignoredCount -= 1;
+        campaign.clickedCount += 1;
+      } else {
+        campaign.clickedCount += 1;
+      }
+
+      campaign.status = "Active";
+      await campaign.save();
+    }
+
+    res.send(`
+      <html>
+        <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+          <h2>Training Link Click Recorded</h2>
+          <p>This click was recorded for cybersecurity awareness training.</p>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("Track click error:", error);
+    res.status(500).send("Error tracking click");
+  }
+};
+
 module.exports = {
   createCampaign,
   getCampaigns,
   getCampaignById,
   updateCampaignStats,
   sendCampaignEmail,
+  trackCampaignOpen,
+  trackCampaignClick,
 };
