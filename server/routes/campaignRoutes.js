@@ -4,6 +4,7 @@ const {
   getCampaigns,
   getCampaignById,
   updateCampaignStats,
+  sendCampaignEmail,
 } = require("../controllers/campaignController");
 
 const protect = require("../middleware/authMiddleware");
@@ -15,6 +16,9 @@ router.post("/", protect, createCampaign);
 
 // Get all campaigns for logged-in user
 router.get("/", protect, getCampaigns);
+
+// Send campaign email to one or many recipients
+router.post("/:id/send-email", protect, sendCampaignEmail);
 
 // Get one campaign details
 router.get("/:id", protect, getCampaignById);

@@ -1,4 +1,5 @@
 const Campaign = require("../models/Campaign");
+const transporter = require("../config/emailTransporter");
 
 // Create new awareness campaign
 const createCampaign = async (req, res) => {
@@ -125,9 +126,96 @@ const updateCampaignStats = async (req, res) => {
   }
 };
 
+// Send campaign email to one or many recipients
+const sendCampaignEmail = async (req, res) => {
+  try {
+    const { recipients } = req.body;
+
+    if (!recipients) {
+      return res.status(400).json({
+        message: "Please provide at least one recipient email",
+      });
+    }
+
+    const emailList = recipients
+      .split(",")
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0);
+
+    if (emailList.length === 0) {
+      return res.status(400).json({
+        message: "No valid recipient emails found",
+      });
+    }
+
+    const campaign = await Campaign.findOne({
+      _id: req.params.id,
+      user: req.user.id,
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        message: "Campaign not found",
+      });
+    }
+
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    const trackingLink = `${backendUrl}/api/campaigns/track-click/${campaign._id}`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <p>${campaign.fakeEmailContent}</p>
+
+        <p>
+          <a href="${trackingLink}" 
+             style="display: inline-block; padding: 10px 15px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
+            Verify Now
+          </a>
+        </p>
+
+        <p style="font-size: 12px; color: #666;">
+          This email is part of an authorized cybersecurity awareness training campaign.
+        </p>
+      </div>
+    `;
+
+    const sendResults = [];
+
+    for (const email of emailList) {
+      await transporter.sendMail({
+        from: `"AI Phishing Detector" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: campaign.fakeEmailSubject,
+        html: htmlContent,
+      });
+
+      sendResults.push(email);
+    }
+
+    campaign.totalTargets = emailList.length;
+    campaign.ignoredCount = Math.max(emailList.length - campaign.clickedCount, 0);
+    campaign.status = "Active";
+
+    await campaign.save();
+
+    res.status(200).json({
+      message: "Campaign emails sent successfully",
+      sentTo: sendResults,
+      totalSent: sendResults.length,
+      campaign,
+    });
+  } catch (error) {
+    console.error("Send campaign email error:", error);
+    res.status(500).json({
+      message: "Server error while sending campaign emails",
+    });
+  }
+};
+
 module.exports = {
   createCampaign,
   getCampaigns,
   getCampaignById,
   updateCampaignStats,
+  sendCampaignEmail,
 };

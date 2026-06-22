@@ -149,7 +149,7 @@ function Campaigns() {
 
   const sendCampaignEmail = async (campaignId) => {
     if (!recipientEmail.trim()) {
-      alert("Please enter recipient email.");
+      alert("Please enter at least one recipient email.");
       return;
     }
 
@@ -157,10 +157,9 @@ function Campaigns() {
       setSendingEmailId(campaignId);
 
       const response = await axios.post(
-        "http://localhost:5000/api/email/send-campaign",
+        `http://localhost:5000/api/campaigns/${campaignId}/send-email`,
         {
-          campaignId,
-          recipientEmail,
+          recipients: recipientEmail,
         },
         {
           headers: {
@@ -169,8 +168,10 @@ function Campaigns() {
         }
       );
 
-      alert(response.data.message);
+      alert(`${response.data.totalSent} campaign email(s) sent successfully.`);
+
       setRecipientEmail("");
+      await fetchCampaigns();
     } catch (error) {
       console.log("Send campaign email failed:", error.response?.data || error);
       alert(error.response?.data?.message || "Failed to send campaign email");
@@ -365,8 +366,8 @@ function Campaigns() {
                     <h4>Send Training Email</h4>
 
                     <input
-                      type="email"
-                      placeholder="Recipient email address"
+                      type="text"
+                      placeholder="email1@gmail.com, email2@gmail.com, email3@gmail.com"
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}
                     />
