@@ -22,19 +22,28 @@ const sendCampaignEmail = async (req, res) => {
       });
     }
 
+    const trackingLink = `${process.env.BACKEND_URL}/api/email/click/${campaign._id}`;
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: recipientEmail,
       subject: campaign.fakeEmailSubject,
       html: `
-        <div style="font-family: Arial, sans-serif;">
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
           <h2>${campaign.fakeEmailSubject}</h2>
 
           <p>${campaign.fakeEmailContent}</p>
 
+          <p>
+            <a href="${trackingLink}" 
+               style="background:#2563eb;color:white;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block;">
+              Review Account
+            </a>
+          </p>
+
           <hr />
 
-          <p style="color:gray;">
+          <p style="color:gray;font-size:13px;">
             This is an authorized cybersecurity awareness training email.
           </p>
         </div>
@@ -55,6 +64,47 @@ const sendCampaignEmail = async (req, res) => {
   }
 };
 
+const trackCampaignClick = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+
+    const campaign = await Campaign.findById(campaignId);
+
+    if (!campaign) {
+      return res.status(404).send("Campaign not found");
+    }
+
+    campaign.clickedCount += 1;
+
+    if (campaign.ignoredCount > 0) {
+      campaign.ignoredCount -= 1;
+    }
+
+    campaign.status = "Active";
+
+    await campaign.save();
+
+    res.send(`
+      <html>
+        <head>
+          <title>Awareness Training</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1>Cybersecurity Awareness Training</h1>
+          <p>This click has been recorded for training purposes.</p>
+          <p>You clicked a simulated phishing training link.</p>
+          <h3>Training Tip:</h3>
+          <p>Always verify links before clicking and never share passwords through email.</p>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("Click tracking error:", error);
+    res.status(500).send("Error tracking click");
+  }
+};
+
 module.exports = {
   sendCampaignEmail,
+  trackCampaignClick,
 };
