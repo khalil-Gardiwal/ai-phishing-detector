@@ -186,10 +186,52 @@ function Campaigns() {
     }
 
     const safeUsers = campaign.ignoredCount + campaign.openedCount;
-    const score = Math.round((safeUsers / campaign.totalTargets) * 100);
-
-    return score;
+    return Math.round((safeUsers / campaign.totalTargets) * 100);
   };
+
+  const totalCampaigns = campaigns.length;
+
+  const analyticsTotalTargets = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.totalTargets || 0),
+    0
+  );
+
+  const totalOpened = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.openedCount || 0),
+    0
+  );
+
+  const totalClicked = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.clickedCount || 0),
+    0
+  );
+
+  const totalIgnored = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.ignoredCount || 0),
+    0
+  );
+
+  const openRate =
+    analyticsTotalTargets > 0
+      ? Math.round((totalOpened / analyticsTotalTargets) * 100)
+      : 0;
+
+  const clickRate =
+    analyticsTotalTargets > 0
+      ? Math.round((totalClicked / analyticsTotalTargets) * 100)
+      : 0;
+
+  const ignoreRate =
+    analyticsTotalTargets > 0
+      ? Math.round((totalIgnored / analyticsTotalTargets) * 100)
+      : 0;
+
+  const overallAwarenessScore =
+    analyticsTotalTargets > 0
+      ? Math.round(
+          ((totalOpened + totalIgnored) / analyticsTotalTargets) * 100
+        )
+      : 0;
 
   return (
     <div className="page">
@@ -199,6 +241,63 @@ function Campaigns() {
           Create simulated phishing campaigns for cybersecurity awareness
           training.
         </p>
+
+        <div className="campaign-analytics">
+          <h2>Campaign Analytics Dashboard</h2>
+
+          <div className="campaign-stats">
+            <div>
+              <strong>{totalCampaigns}</strong>
+              <small>Total Campaigns</small>
+            </div>
+
+            <div>
+              <strong>{analyticsTotalTargets}</strong>
+              <small>Total Targets</small>
+            </div>
+
+            <div>
+              <strong>{totalOpened}</strong>
+              <small>Total Opened</small>
+            </div>
+
+            <div>
+              <strong>{totalClicked}</strong>
+              <small>Total Clicked</small>
+            </div>
+
+            <div>
+              <strong>{totalIgnored}</strong>
+              <small>Total Ignored</small>
+            </div>
+          </div>
+
+          <div className="analytics-rates">
+            <div>
+              <strong>Open Rate</strong>
+              <p>{openRate}%</p>
+              <progress value={openRate} max="100"></progress>
+            </div>
+
+            <div>
+              <strong>Click Rate</strong>
+              <p>{clickRate}%</p>
+              <progress value={clickRate} max="100"></progress>
+            </div>
+
+            <div>
+              <strong>Ignore Rate</strong>
+              <p>{ignoreRate}%</p>
+              <progress value={ignoreRate} max="100"></progress>
+            </div>
+
+            <div>
+              <strong>Overall Awareness Score</strong>
+              <p>{overallAwarenessScore}%</p>
+              <progress value={overallAwarenessScore} max="100"></progress>
+            </div>
+          </div>
+        </div>
 
         <div className="campaign-layout">
           <form className="campaign-form" onSubmit={createCampaign}>
