@@ -14,6 +14,7 @@ function Campaigns() {
   const [loading, setLoading] = useState(false);
   const [expandedCampaignId, setExpandedCampaignId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const [recipientEmail, setRecipientEmail] = useState("");
   const [sendingEmailId, setSendingEmailId] = useState(null);
@@ -81,6 +82,34 @@ function Campaigns() {
       alert(error.response?.data?.message || "Failed to create campaign");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteCampaign = async (campaignId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this campaign? This action cannot be undone."
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      setDeletingId(campaignId);
+
+      await axios.delete(`http://localhost:5000/api/campaigns/${campaignId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      await fetchCampaigns();
+      alert("Campaign deleted successfully.");
+    } catch (error) {
+      console.log("Delete campaign failed:", error.response?.data || error);
+      alert(error.response?.data?.message || "Failed to delete campaign");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -458,6 +487,17 @@ function Campaigns() {
                       disabled={updatingId === campaign._id}
                     >
                       Reset
+                    </button>
+
+                    <button
+                      type="button"
+                      className="reset-btn"
+                      onClick={() => deleteCampaign(campaign._id)}
+                      disabled={deletingId === campaign._id}
+                    >
+                      {deletingId === campaign._id
+                        ? "Deleting..."
+                        : "Delete Campaign"}
                     </button>
                   </div>
 

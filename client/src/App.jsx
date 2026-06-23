@@ -8,6 +8,9 @@ import "./App.css";
 function App() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isAdmin = user?.role === "admin";
 
   const logoutUser = () => {
     localStorage.removeItem("token");
@@ -26,7 +29,7 @@ function App() {
           {!token && <Link to="/login">Login</Link>}
 
           {token && <Link to="/dashboard">Dashboard</Link>}
-          {token && <Link to="/campaigns">Campaigns</Link>}
+          {token && isAdmin && <Link to="/campaigns">Campaigns</Link>}
           {token && <button onClick={logoutUser}>Logout</button>}
         </div>
       </nav>
@@ -54,7 +57,9 @@ function App() {
 
         <Route
           path="/campaigns"
-          element={token ? <Campaigns /> : <Navigate to="/login" />}
+          element={
+            token && isAdmin ? <Campaigns /> : <Navigate to="/dashboard" />
+          }
         />
       </Routes>
     </>

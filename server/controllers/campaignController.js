@@ -44,7 +44,7 @@ const createCampaign = async (req, res) => {
   }
 };
 
-// Get campaigns for logged-in user
+// Get campaigns for logged-in admin
 const getCampaigns = async (req, res) => {
   try {
     const campaigns = await Campaign.find({ user: req.user.id }).sort({
@@ -115,6 +115,33 @@ const updateCampaignStats = async (req, res) => {
   }
 };
 
+// Delete campaign
+const deleteCampaign = async (req, res) => {
+  try {
+    const campaign = await Campaign.findOne({
+      _id: req.params.id,
+      user: req.user.id,
+    });
+
+    if (!campaign) {
+      return res.status(404).json({
+        message: "Campaign not found",
+      });
+    }
+
+    await campaign.deleteOne();
+
+    res.status(200).json({
+      message: "Campaign deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete campaign error:", error);
+    res.status(500).json({
+      message: "Server error while deleting campaign",
+    });
+  }
+};
+
 // Send campaign email to one or many recipients
 const sendCampaignEmail = async (req, res) => {
   try {
@@ -164,13 +191,13 @@ const sendCampaignEmail = async (req, res) => {
           </a>
         </p>
 
-      <img 
-  src="${openTrackingPixel}" 
-  width="1" 
-  height="1" 
-  style="width:1px;height:1px;opacity:0.01;" 
-  alt="."
-/>
+        <img 
+          src="${openTrackingPixel}" 
+          width="1" 
+          height="1" 
+          style="width:1px;height:1px;opacity:0.01;" 
+          alt="."
+        />
 
         <p style="font-size: 12px; color: #666;">
           This email is part of an authorized cybersecurity awareness training campaign.
@@ -293,6 +320,7 @@ module.exports = {
   getCampaigns,
   getCampaignById,
   updateCampaignStats,
+  deleteCampaign,
   sendCampaignEmail,
   trackCampaignOpen,
   trackCampaignClick,

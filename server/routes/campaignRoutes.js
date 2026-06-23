@@ -4,12 +4,14 @@ const {
   getCampaigns,
   getCampaignById,
   updateCampaignStats,
+  deleteCampaign,
   sendCampaignEmail,
   trackCampaignOpen,
   trackCampaignClick,
 } = require("../controllers/campaignController");
 
 const protect = require("../middleware/authMiddleware");
+const adminOnly = require("../middleware/adminMiddleware");
 
 const router = express.Router();
 
@@ -17,11 +19,12 @@ const router = express.Router();
 router.get("/track-open/:id", trackCampaignOpen);
 router.get("/track-click/:id", trackCampaignClick);
 
-// Protected campaign routes
-router.post("/", protect, createCampaign);
-router.get("/", protect, getCampaigns);
-router.post("/:id/send-email", protect, sendCampaignEmail);
-router.get("/:id", protect, getCampaignById);
-router.put("/:id", protect, updateCampaignStats);
+// Admin-only campaign routes
+router.post("/", protect, adminOnly, createCampaign);
+router.get("/", protect, adminOnly, getCampaigns);
+router.post("/:id/send-email", protect, adminOnly, sendCampaignEmail);
+router.get("/:id", protect, adminOnly, getCampaignById);
+router.put("/:id", protect, adminOnly, updateCampaignStats);
+router.delete("/:id", protect, adminOnly, deleteCampaign);
 
 module.exports = router;
