@@ -1,5 +1,16 @@
+const crypto = require("crypto");
 const Campaign = require("../models/Campaign");
 const transporter = require("../config/emailTransporter");
+
+const recalculateCampaignStats = (campaign) => {
+  const recipients = campaign.recipients || [];
+
+  campaign.totalTargets = recipients.length;
+  campaign.clickedCount = recipients.filter((r) => r.clicked).length;
+  campaign.notClickedCount = recipients.filter((r) => !r.clicked).length;
+
+  return campaign;
+};
 
 // Create new awareness campaign
 const createCampaign = async (req, res) => {
@@ -12,12 +23,7 @@ const createCampaign = async (req, res) => {
       totalTargets,
     } = req.body;
 
-    if (
-      !campaignName ||
-      !targetGroup ||
-      !fakeEmailSubject ||
-      !fakeEmailContent
-    ) {
+    if (!campaignName || !targetGroup || !fakeEmailSubject || !fakeEmailContent) {
       return res.status(400).json({
         message: "Please fill all required campaign fields",
       });
@@ -32,7 +38,10 @@ const createCampaign = async (req, res) => {
       fakeEmailSubject,
       fakeEmailContent,
       totalTargets: targetsNumber,
-      ignoredCount: targetsNumber,
+      clickedCount: 0,
+      notClickedCount: targetsNumber,
+      status: "Draft",
+      recipients: [],
     });
 
     res.status(201).json(campaign);
@@ -50,6 +59,13 @@ const getCampaigns = async (req, res) => {
     const campaigns = await Campaign.find({ user: req.user.id }).sort({
       createdAt: -1,
     });
+
+    for (const campaign of campaigns) {
+      if (campaign.recipients && campaign.recipients.length > 0) {
+        recalculateCampaignStats(campaign);
+        await campaign.save();
+      }
+    }
 
     res.status(200).json(campaigns);
   } catch (error) {
@@ -74,6 +90,11 @@ const getCampaignById = async (req, res) => {
       });
     }
 
+    if (campaign.recipients && campaign.recipients.length > 0) {
+      recalculateCampaignStats(campaign);
+      await campaign.save();
+    }
+
     res.status(200).json(campaign);
   } catch (error) {
     console.error("Get campaign by ID error:", error);
@@ -83,10 +104,10 @@ const getCampaignById = async (req, res) => {
   }
 };
 
-// Update campaign training statistics manually
+// Update campaign status only
 const updateCampaignStats = async (req, res) => {
   try {
-    const { openedCount, clickedCount, ignoredCount, status } = req.body;
+    const { status } = req.body;
 
     const campaign = await Campaign.findOne({
       _id: req.params.id,
@@ -99,11 +120,22 @@ const updateCampaignStats = async (req, res) => {
       });
     }
 
-    if (openedCount !== undefined) campaign.openedCount = Number(openedCount);
-    if (clickedCount !== undefined) campaign.clickedCount = Number(clickedCount);
-    if (ignoredCount !== undefined) campaign.ignoredCount = Number(ignoredCount);
-    if (status !== undefined) campaign.status = status;
+    if (status !== undefined) {
+      campaign.status = status;
+    }
 
+    if (status === "Draft") {
+      campaign.clickedCount = 0;
+      campaign.notClickedCount = campaign.totalTargets || 0;
+      campaign.recipients = (campaign.recipients || []).map((recipient) => ({
+        email: recipient.email,
+        token: recipient.token,
+        clicked: false,
+        clickedAt: null,
+      }));
+    }
+
+    recalculateCampaignStats(campaign);
     await campaign.save();
 
     res.status(200).json(campaign);
@@ -155,10 +187,12 @@ const sendCampaignEmail = async (req, res) => {
 
     const emailList = recipients
       .split(",")
-      .map((email) => email.trim())
+      .map((email) => email.trim().toLowerCase())
       .filter((email) => email.length > 0);
 
-    if (emailList.length === 0) {
+    const uniqueEmailList = [...new Set(emailList)];
+
+    if (uniqueEmailList.length === 0) {
       return res.status(400).json({
         message: "No valid recipient emails found",
       });
@@ -177,54 +211,48 @@ const sendCampaignEmail = async (req, res) => {
 
     const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
 
-    const trackingLink = `${backendUrl}/api/campaigns/track-click/${campaign._id}`;
-    const openTrackingPixel = `${backendUrl}/api/campaigns/track-open/${campaign._id}`;
+    campaign.recipients = uniqueEmailList.map((email) => ({
+      email,
+      token: crypto.randomBytes(24).toString("hex"),
+      clicked: false,
+      clickedAt: null,
+    }));
 
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <p>${campaign.fakeEmailContent}</p>
-
-        <p>
-          <a href="${trackingLink}" 
-             style="display: inline-block; padding: 10px 15px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
-            Verify Now
-          </a>
-        </p>
-
-        <img 
-          src="${openTrackingPixel}" 
-          width="1" 
-          height="1" 
-          style="width:1px;height:1px;opacity:0.01;" 
-          alt="."
-        />
-
-        <p style="font-size: 12px; color: #666;">
-          This email is part of an authorized cybersecurity awareness training campaign.
-        </p>
-      </div>
-    `;
+    campaign.status = "Active";
+    recalculateCampaignStats(campaign);
+    await campaign.save();
 
     const sendResults = [];
 
-    for (const email of emailList) {
+    for (const recipient of campaign.recipients) {
+      const trackingLink = `${backendUrl}/api/campaigns/track-click/${campaign._id}/${recipient.token}`;
+
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <p>${campaign.fakeEmailContent}</p>
+
+          <p>
+            <a href="${trackingLink}"
+               style="display: inline-block; padding: 10px 15px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">
+              Verify Now
+            </a>
+          </p>
+
+          <p style="font-size: 12px; color: #666;">
+            This email is part of an authorized cybersecurity awareness training campaign.
+          </p>
+        </div>
+      `;
+
       await transporter.sendMail({
         from: `"AI Phishing Detector" <${process.env.EMAIL_USER}>`,
-        to: email,
+        to: recipient.email,
         subject: campaign.fakeEmailSubject,
         html: htmlContent,
       });
 
-      sendResults.push(email);
+      sendResults.push(recipient.email);
     }
-
-    campaign.totalTargets = emailList.length;
-    campaign.openedCount = 0;
-    campaign.clickedCount = 0;
-    campaign.ignoredCount = emailList.length;
-    campaign.status = "Active";
-
-    await campaign.save();
 
     res.status(200).json({
       message: "Campaign emails sent successfully",
@@ -240,65 +268,25 @@ const sendCampaignEmail = async (req, res) => {
   }
 };
 
-// Track when email is opened
-const trackCampaignOpen = async (req, res) => {
-  try {
-    const campaign = await Campaign.findById(req.params.id);
-
-    if (campaign) {
-      const alreadyTrackedTotal =
-        Number(campaign.openedCount) + Number(campaign.clickedCount);
-
-      if (alreadyTrackedTotal < Number(campaign.totalTargets)) {
-        campaign.openedCount += 1;
-
-        if (campaign.ignoredCount > 0) {
-          campaign.ignoredCount -= 1;
-        }
-
-        campaign.status = "Active";
-        await campaign.save();
-      }
-    }
-
-    const pixel = Buffer.from(
-      "R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==",
-      "base64"
-    );
-
-    res.writeHead(200, {
-      "Content-Type": "image/gif",
-      "Content-Length": pixel.length,
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
-    });
-
-    res.end(pixel);
-  } catch (error) {
-    console.error("Track open error:", error);
-    res.status(200).end();
-  }
-};
-
 // Track when email link is clicked
 const trackCampaignClick = async (req, res) => {
   try {
-    const campaign = await Campaign.findById(req.params.id);
+    const { id, token } = req.params;
+
+    const campaign = await Campaign.findById(id);
 
     if (campaign) {
-      if (campaign.openedCount > 0) {
-        campaign.openedCount -= 1;
-        campaign.clickedCount += 1;
-      } else if (campaign.ignoredCount > 0) {
-        campaign.ignoredCount -= 1;
-        campaign.clickedCount += 1;
-      } else {
-        campaign.clickedCount += 1;
-      }
+      const recipient = campaign.recipients.find((r) => r.token === token);
 
-      campaign.status = "Active";
-      await campaign.save();
+      if (recipient && !recipient.clicked) {
+        recipient.clicked = true;
+        recipient.clickedAt = new Date();
+
+        campaign.status = "Active";
+        recalculateCampaignStats(campaign);
+
+        await campaign.save();
+      }
     }
 
     res.send(`
@@ -306,6 +294,7 @@ const trackCampaignClick = async (req, res) => {
         <body style="font-family: Arial; text-align: center; margin-top: 50px;">
           <h2>Training Link Click Recorded</h2>
           <p>This click was recorded for cybersecurity awareness training.</p>
+          <p>You may now close this page.</p>
         </body>
       </html>
     `);
@@ -322,6 +311,5 @@ module.exports = {
   updateCampaignStats,
   deleteCampaign,
   sendCampaignEmail,
-  trackCampaignOpen,
   trackCampaignClick,
 };

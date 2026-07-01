@@ -1,5 +1,28 @@
 const mongoose = require("mongoose");
 
+const recipientSchema = new mongoose.Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    token: {
+      type: String,
+      required: true,
+    },
+    clicked: {
+      type: Boolean,
+      default: false,
+    },
+    clickedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const campaignSchema = new mongoose.Schema(
   {
     user: {
@@ -43,19 +66,19 @@ const campaignSchema = new mongoose.Schema(
       default: 0,
     },
 
-    openedCount: {
-      type: Number,
-      default: 0,
-    },
-
     clickedCount: {
       type: Number,
       default: 0,
     },
 
-    ignoredCount: {
+    notClickedCount: {
       type: Number,
       default: 0,
+    },
+
+    recipients: {
+      type: [recipientSchema],
+      default: [],
     },
   },
   {

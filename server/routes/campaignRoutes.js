@@ -6,7 +6,6 @@ const {
   updateCampaignStats,
   deleteCampaign,
   sendCampaignEmail,
-  trackCampaignOpen,
   trackCampaignClick,
 } = require("../controllers/campaignController");
 
@@ -15,9 +14,8 @@ const adminOnly = require("../middleware/adminMiddleware");
 
 const router = express.Router();
 
-// Public tracking routes
-router.get("/track-open/:id", trackCampaignOpen);
-router.get("/track-click/:id", trackCampaignClick);
+// Public tracking route with unique recipient token
+router.get("/track-click/:id/:token", trackCampaignClick);
 
 // Admin-only campaign routes
 router.post("/", protect, adminOnly, createCampaign);

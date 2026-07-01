@@ -13,15 +13,17 @@ function Campaigns() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedCampaignId, setExpandedCampaignId] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const [recipientEmail, setRecipientEmail] = useState("");
   const [sendingEmailId, setSendingEmailId] = useState(null);
 
+  const API_URL = "http://localhost:5000/api/campaigns";
+
   const fetchCampaigns = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/campaigns", {
+      const response = await axios.get(API_URL, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -54,7 +56,7 @@ function Campaigns() {
       setLoading(true);
 
       await axios.post(
-        "http://localhost:5000/api/campaigns",
+        API_URL,
         {
           campaignName,
           targetGroup,
@@ -87,17 +89,15 @@ function Campaigns() {
 
   const deleteCampaign = async (campaignId) => {
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this campaign? This action cannot be undone."
+      "Are you sure you want to delete this campaign?"
     );
 
-    if (!confirmDelete) {
-      return;
-    }
+    if (!confirmDelete) return;
 
     try {
       setDeletingId(campaignId);
 
-      await axios.delete(`http://localhost:5000/api/campaigns/${campaignId}`, {
+      await axios.delete(`${API_URL}/${campaignId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -113,53 +113,13 @@ function Campaigns() {
     }
   };
 
-  const updateCampaignStats = async (campaign, action) => {
+  const markCompleted = async (campaignId) => {
     try {
-      setUpdatingId(campaign._id);
-
-      let openedCount = campaign.openedCount;
-      let clickedCount = campaign.clickedCount;
-      let ignoredCount = campaign.ignoredCount;
-      let status = campaign.status;
-
-      if (action === "open") {
-        if (ignoredCount > 0) {
-          ignoredCount -= 1;
-          openedCount += 1;
-        }
-        status = "Active";
-      }
-
-      if (action === "click") {
-        if (ignoredCount > 0) {
-          ignoredCount -= 1;
-          clickedCount += 1;
-        } else if (openedCount > 0) {
-          openedCount -= 1;
-          clickedCount += 1;
-        }
-        status = "Active";
-      }
-
-      if (action === "complete") {
-        status = "Completed";
-      }
-
-      if (action === "reset") {
-        openedCount = 0;
-        clickedCount = 0;
-        ignoredCount = campaign.totalTargets;
-        status = "Draft";
-      }
+      setUpdatingId(campaignId);
 
       await axios.put(
-        `http://localhost:5000/api/campaigns/${campaign._id}`,
-        {
-          openedCount,
-          clickedCount,
-          ignoredCount,
-          status,
-        },
+        `${API_URL}/${campaignId}`,
+        { status: "Completed" },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -169,8 +129,35 @@ function Campaigns() {
 
       await fetchCampaigns();
     } catch (error) {
-      console.log("Update campaign failed:", error.response?.data || error);
+      console.log("Mark completed failed:", error.response?.data || error);
       alert(error.response?.data?.message || "Failed to update campaign");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const resetCampaign = async (campaign) => {
+    const confirmReset = window.confirm("Reset this campaign statistics?");
+
+    if (!confirmReset) return;
+
+    try {
+      setUpdatingId(campaign._id);
+
+      await axios.put(
+        `${API_URL}/${campaign._id}`,
+        { status: "Draft" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await fetchCampaigns();
+    } catch (error) {
+      console.log("Reset failed:", error.response?.data || error);
+      alert(error.response?.data?.message || "Failed to reset campaign");
     } finally {
       setUpdatingId(null);
     }
@@ -186,10 +173,8 @@ function Campaigns() {
       setSendingEmailId(campaignId);
 
       const response = await axios.post(
-        `http://localhost:5000/api/campaigns/${campaignId}/send-email`,
-        {
-          recipients: recipientEmail,
-        },
+        `${API_URL}/${campaignId}/send-email`,
+        { recipients: recipientEmail },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -210,12 +195,15 @@ function Campaigns() {
   };
 
   const calculateAwarenessScore = (campaign) => {
-    if (!campaign.totalTargets || campaign.totalTargets === 0) {
-      return 0;
-    }
+    if (!campaign.totalTargets || campaign.totalTargets === 0) return 0;
 
-    const safeUsers = campaign.ignoredCount + campaign.openedCount;
-    return Math.round((safeUsers / campaign.totalTargets) * 100);
+    const notClicked = Number(campaign.notClickedCount || 0);
+    return Math.round((notClicked / campaign.totalTargets) * 100);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "-";
+    return new Date(date).toLocaleString();
   };
 
   const totalCampaigns = campaigns.length;
@@ -225,41 +213,24 @@ function Campaigns() {
     0
   );
 
-  const totalOpened = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.openedCount || 0),
-    0
-  );
-
   const totalClicked = campaigns.reduce(
     (sum, campaign) => sum + Number(campaign.clickedCount || 0),
     0
   );
 
-  const totalIgnored = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.ignoredCount || 0),
+  const totalNotClicked = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.notClickedCount || 0),
     0
   );
-
-  const openRate =
-    analyticsTotalTargets > 0
-      ? Math.round((totalOpened / analyticsTotalTargets) * 100)
-      : 0;
 
   const clickRate =
     analyticsTotalTargets > 0
       ? Math.round((totalClicked / analyticsTotalTargets) * 100)
       : 0;
 
-  const ignoreRate =
-    analyticsTotalTargets > 0
-      ? Math.round((totalIgnored / analyticsTotalTargets) * 100)
-      : 0;
-
   const overallAwarenessScore =
     analyticsTotalTargets > 0
-      ? Math.round(
-          ((totalOpened + totalIgnored) / analyticsTotalTargets) * 100
-        )
+      ? Math.round((totalNotClicked / analyticsTotalTargets) * 100)
       : 0;
 
   return (
@@ -286,38 +257,21 @@ function Campaigns() {
             </div>
 
             <div>
-              <strong>{totalOpened}</strong>
-              <small>Total Opened</small>
-            </div>
-
-            <div>
               <strong>{totalClicked}</strong>
               <small>Total Clicked</small>
             </div>
 
             <div>
-              <strong>{totalIgnored}</strong>
-              <small>Total Ignored</small>
+              <strong>{totalNotClicked}</strong>
+              <small>Total Not Clicked</small>
             </div>
           </div>
 
           <div className="analytics-rates">
             <div>
-              <strong>Open Rate</strong>
-              <p>{openRate}%</p>
-              <progress value={openRate} max="100"></progress>
-            </div>
-
-            <div>
               <strong>Click Rate</strong>
               <p>{clickRate}%</p>
               <progress value={clickRate} max="100"></progress>
-            </div>
-
-            <div>
-              <strong>Ignore Rate</strong>
-              <p>{ignoreRate}%</p>
-              <progress value={ignoreRate} max="100"></progress>
             </div>
 
             <div>
@@ -359,7 +313,7 @@ function Campaigns() {
             <label>Fake Email Subject *</label>
             <input
               type="text"
-              placeholder="Example: Your bank account has been locked"
+              placeholder="Example: Your account has been locked"
               value={fakeEmailSubject}
               onChange={(e) => setFakeEmailSubject(e.target.value)}
             />
@@ -398,24 +352,18 @@ function Campaigns() {
                   </p>
 
                   <p>
-                    <strong>Email Subject:</strong>{" "}
-                    {campaign.fakeEmailSubject}
+                    <strong>Email Subject:</strong> {campaign.fakeEmailSubject}
                   </p>
 
                   <div className="campaign-stats">
-                    <div>
-                      <strong>{campaign.openedCount}</strong>
-                      <small>Opened</small>
-                    </div>
-
                     <div>
                       <strong>{campaign.clickedCount}</strong>
                       <small>Clicked</small>
                     </div>
 
                     <div>
-                      <strong>{campaign.ignoredCount}</strong>
-                      <small>Ignored</small>
+                      <strong>{campaign.notClickedCount}</strong>
+                      <small>Not Clicked</small>
                     </div>
                   </div>
 
@@ -437,8 +385,8 @@ function Campaigns() {
                     }
                   >
                     {expandedCampaignId === campaign._id
-                      ? "Hide Fake Email"
-                      : "View Fake Email"}
+                      ? "Hide Details"
+                      : "View Details"}
                   </button>
 
                   {expandedCampaignId === campaign._id && (
@@ -452,29 +400,46 @@ function Campaigns() {
                       <div className="fake-email-content">
                         {campaign.fakeEmailContent}
                       </div>
+
+                      <h4>Employee Click Tracking</h4>
+
+                      {!campaign.recipients ||
+                      campaign.recipients.length === 0 ? (
+                        <p>No emails sent yet.</p>
+                      ) : (
+                        <div style={{ overflowX: "auto" }}>
+                          <table className="recipient-table">
+                            <thead>
+                              <tr>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Clicked At</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {campaign.recipients.map((recipient) => (
+                                <tr key={recipient.token}>
+                                  <td>{recipient.email}</td>
+                                  <td>
+                                    {recipient.clicked
+                                      ? "Clicked"
+                                      : "Not Clicked"}
+                                  </td>
+                                  <td>{formatDate(recipient.clickedAt)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   <div className="campaign-actions">
                     <button
                       type="button"
-                      onClick={() => updateCampaignStats(campaign, "open")}
-                      disabled={updatingId === campaign._id}
-                    >
-                      Simulate Opened
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => updateCampaignStats(campaign, "click")}
-                      disabled={updatingId === campaign._id}
-                    >
-                      Simulate Clicked
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => updateCampaignStats(campaign, "complete")}
+                      onClick={() => markCompleted(campaign._id)}
                       disabled={updatingId === campaign._id}
                     >
                       Mark Completed
@@ -483,7 +448,7 @@ function Campaigns() {
                     <button
                       type="button"
                       className="reset-btn"
-                      onClick={() => updateCampaignStats(campaign, "reset")}
+                      onClick={() => resetCampaign(campaign)}
                       disabled={updatingId === campaign._id}
                     >
                       Reset
@@ -506,7 +471,7 @@ function Campaigns() {
 
                     <input
                       type="text"
-                      placeholder="email1@gmail.com, email2@gmail.com, email3@gmail.com"
+                      placeholder="email1@gmail.com, email2@gmail.com"
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}
                     />
